@@ -14,6 +14,7 @@ export default function TextToSpeechForm() {
     const [model, setModel] = useState("tts-1");
     const [isLoading, setIsLoading] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [isFinalized, setIsFinalized] = useState(false);
 
     const maxCharacters = 4096;
     const remainingChars = maxCharacters - text.length;
@@ -32,7 +33,7 @@ export default function TextToSpeechForm() {
         { value: "tts-1-hd", label: "HD (tts-1-hd)" },
     ];
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handlePreview = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!text.trim()) {
@@ -46,6 +47,7 @@ export default function TextToSpeechForm() {
         }
 
         setIsLoading(true);
+        setIsFinalized(false);
 
         // Clean up previous audio URL
         if (audioUrl) {
@@ -70,7 +72,7 @@ export default function TextToSpeechForm() {
             const audioBlob = await response.blob();
             const url = URL.createObjectURL(audioBlob);
             setAudioUrl(url);
-            toast.success("Speech generated successfully!");
+            toast.success("Preview generated! Listen and finalize when ready.");
         } catch (error: any) {
             console.error("Error generating speech:", error);
             toast.error(error.message || "Failed to generate speech");
@@ -79,8 +81,14 @@ export default function TextToSpeechForm() {
         }
     };
 
-    const handleDownload = () => {
+    const handleFinalize = () => {
         if (!audioUrl) return;
+        setIsFinalized(true);
+        toast.success("Audio finalized! You can now download your MP3.");
+    };
+
+    const handleDownload = () => {
+        if (!audioUrl || !isFinalized) return;
 
         const a = document.createElement("a");
         a.href = audioUrl;
@@ -105,7 +113,7 @@ export default function TextToSpeechForm() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handlePreview} className="space-y-6">
                     {/* Text Input */}
                     <div className="space-y-2">
                         <label htmlFor="text" className="text-sm font-medium">
@@ -163,7 +171,7 @@ export default function TextToSpeechForm() {
                         </div>
                     </div>
 
-                    {/* Generate Button */}
+                    {/* Generate Preview Button */}
                     <Button
                         type="submit"
                         size="lg"
@@ -173,23 +181,53 @@ export default function TextToSpeechForm() {
                         {isLoading ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                Generating Speech...
+                                Generating Preview...
                             </>
                         ) : (
                             <>
                                 <Volume2 className="mr-2 h-5 w-5" />
-                                Generate Speech
+                                {audioUrl && !isFinalized ? "Regenerate Preview" : "Generate Preview"}
                             </>
                         )}
                     </Button>
                 </form>
 
-                {/* Audio Player and Download */}
-                {audioUrl && (
+                {/* Preview Audio Player and Finalize */}
+                {audioUrl && !isFinalized && (
                     <div className="space-y-4 pt-4 border-t">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">
-                                Generated Audio
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                                Preview Audio
+                            </label>
+                            <audio
+                                controls
+                                src={audioUrl}
+                                className="w-full"
+                                preload="metadata"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                                Listen to the preview. Adjust settings and regenerate if needed, or finalize to create your MP3.
+                            </p>
+                        </div>
+                        <Button
+                            onClick={handleFinalize}
+                            size="lg"
+                            className="w-full text-base font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                        >
+                            <Download className="mr-2 h-5 w-5" />
+                            Finalize & Create MP3
+                        </Button>
+                    </div>
+                )}
+
+                {/* Finalized Audio and Download */}
+                {audioUrl && isFinalized && (
+                    <div className="space-y-4 pt-4 border-t">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                                Final Audio
                             </label>
                             <audio
                                 controls
@@ -202,7 +240,7 @@ export default function TextToSpeechForm() {
                             onClick={handleDownload}
                             variant="outline"
                             size="lg"
-                            className="w-full text-base font-semibold"
+                            className="w-full text-base font-semibold border-2"
                         >
                             <Download className="mr-2 h-5 w-5" />
                             Download MP3
